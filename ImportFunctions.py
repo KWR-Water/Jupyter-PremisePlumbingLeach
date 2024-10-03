@@ -4,8 +4,16 @@ Created on Mon Sep 16 15:08:52 2024
 
 @author: dasham
 """
-# %% 
+#TODO @Amitosh: First code review like this. I am going to add a little here about how I do it. I will put TODO @Amitosh everywhere.
+#TODO @Amitosh Also I will put numbers 1 - 4. where 1 means, breaking, dont do this to 4 which means convention is slightly different, but fine to leave like this
+#
+#TODO 4 @Amitosh you use what they call CamelCase for your variable names. It looks consistent which is good. However according to python standards this is the convention for
+# classes and not variables or functions (https://peps.python.org/pep-0008/#class-names) I dont care one bit, so leave it for now. But know that it might come back one day.
+#TODO 3 @Amitosh I think you should remove all these run cells since it is now a jupyter nodebook
+# %%  
 
+#TODO 2 @Amitosh remove all these commented out code. 
+#TODO 1 @Amitosh this hard coded sys path should ofcourse go since no one has that.
 import sys
 #sys.path
 sys.path.append('C:\\Users\\dasham\\Anaconda3\\envs\\Aquarellus\\Lib\\site-packages')
@@ -14,38 +22,39 @@ sys.path.append('C:\\Users\\dasham\\Anaconda3\\envs\\Aquarellus\\Lib\\site-packa
 #!python3
 #!python3 -m pip install -r Requirements.txt
 
+#TODO @Amitosh Vs code shows many imports here that are actually not used, does spyder do so too?
 import numpy as np
 import wntr
-import matplotlib
-from copy import deepcopy
+import matplotlib #TODO 2 @Amitosh, not used
+from copy import deepcopy #TODO 2 @Amitosh, not used
 import matplotlib.pyplot as plt
-from matplotlib import style, cm
-import matplotlib.colors as mcolors
+from matplotlib import style, cm #TODO 2 @Amitosh, not used
+import matplotlib.colors as mcolors #TODO 2 @Amitosh, not used
 import matplotlib.dates as mdates
-from wntr.graphics.network import plot_network 
-import seaborn as sns
+from wntr.graphics.network import plot_network #TODO 2 @Amitosh, not used
+import seaborn as sns #TODO 2 @Amitosh, not used
 import time
 import pickle
-import matplotlib.patches as mpatches
-import matplotlib.animation as animation
+import matplotlib.patches as mpatches #TODO 2 @Amitosh, not used
+import matplotlib.animation as animation #TODO 2 @Amitosh, not used
 # sns.set_theme(style="whitegrid")
-import csv
+import csv #TODO 2 @Amitosh, not used
 # from moviepy.editor import VideoClip
 # from moviepy.video.io.bindings import mplfig_to_npimage
 
-import os
+import os #TODO 2 @Amitosh, not used
 import datetime
 from datetime import datetime
 # os.chdir('D:\\Users\\dasham\\Documents\\Projects\\Archives\\LoodAfgifte - Fase I\\Fase I\\Codes\\')
 import pandas as pd
 from os import listdir
-import networkx as nx
-from tempfile import TemporaryFile
-import winsound
+import networkx as nx #TODO 2 @Amitosh, not used
+from tempfile import TemporaryFile #TODO 2 @Amitosh, not used
+import winsound #TODO 2 @Amitosh, not used
 # from MSXBinaryReader import Model_modify_ALL_Diams,getVolumeBetweenNodes,ModifyDurationAndOverwrite, ReturnLengthLinksAndMaxvelocitiesModel, MSXBinReader, ModifyINP_timeAndBaseDemand,RunMSXcommandLine, CheckDFwithINPfile, ProcessWithDemand, Model_multiply_ALL_LENGTHS, Model_SplitPipe
 
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle
+from matplotlib.collections import PatchCollection #TODO 2 @Amitosh, not used
+from matplotlib.patches import Rectangle #TODO 2 @Amitosh, not used
 
 # %%
 
@@ -64,19 +73,20 @@ def ExtractDemandNodes(InputFile):
         This list contains names of all nodes at which water demand is present (consumption points).
     '''
     
-    inp_file = InputFile
+    inp_file = InputFile #TODO 4 @Amitosh just directly input InputFile on the line below
     wn = wntr.network.WaterNetworkModel(inp_file)
     
     DemandNodes = []
     for junctionname, junction in wn.junctions():
         # print(junctionname)
         if junction.demand_timeseries_list[-1].base_value > 0:
-            DemandNodes = np.append(DemandNodes,str(junctionname))
+            DemandNodes = np.append(DemandNodes,str(junctionname)) #TODO 3 @Amitosh, I think junctionname is a string always already.
             
     return DemandNodes
 
 # %%
 
+#TODO 2 @Amitosh below you explain inputfile, outputfile, numberofinputfiles but your input is only Files. So explain that instead of these
 def RunModel(Files,
              ConsumptionProperties,
              TimeProperties,QualityProperties,
@@ -124,8 +134,8 @@ def RunModel(Files,
         if file == 0:
             DemandNodes = ExtractDemandNodes(inp_file)
             ConsumptionProperties['ConsumptionPoints'] = DemandNodes
-            Qual = np.zeros([len(DemandNodes), Timesteps, Files['Number of files']])   # Water quality
-            Dem = np.zeros([len(DemandNodes), Timesteps, Files['Number of files']])   # Demand
+            Qual = np.zeros([len(DemandNodes), Timesteps, Files['Number of files']])   # Water quality #TODO 3 @Amitosh call it quality or even water_quality nota qual
+            Dem = np.zeros([len(DemandNodes), Timesteps, Files['Number of files']])   # Demand #TODO 3 @Amitosh call is demand not dem
         
         wn = wntr.network.WaterNetworkModel(inp_file)
         
@@ -135,7 +145,7 @@ def RunModel(Files,
         wn.options.time.report_timestep = TimeProperties['Report Timestep']*Factor 
         wn.options.time.pattern_timestep = TimeProperties['Pattern Timestep']*Factor
         
-        for junc_name,junc in wn.junctions():
+        for junc_name,junc in wn.junctions(): #TODO 3 @Amitosh call it junction not junc
             junc.demand_timeseries_list[-1].base_value /= Factor
             
         wn.options.quality.parameter = QualityProperties['Parameter']
@@ -155,7 +165,7 @@ def RunModel(Files,
         for node in range(len(DemandNodes)):
             Qual[node:node+1, :,file:file+1] = np.reshape(np.array(results.node['quality'][DemandNodes[node]]), (1, Timesteps, 1)) # kg/m3
             Dem[node:node+1, :,file:file+1] = np.reshape(np.array(results.node['demand'][DemandNodes[node]]), (1, Timesteps, 1)) # m3/s
-            
+    #TODO 3 @Amitosh, here I would also prefer full names. It is good practice to only use abbreviations for things we all agree on (like loc or temp) and use full names for anything else. It will make sure that someone better understands what is happening        
     QualFull = Qual
     DemFull = Dem*Factor # Correct for rescaling
     Qual = QualFull[:,int((TimeProperties['Duration']-ConsumptionProperties['Pattern Duration'])/TimeProperties['Pattern Timestep'])+1:,:] # HARDCODING - Use only second week of simulation
@@ -208,7 +218,7 @@ def CopyDemandFromExistingGeometry(InputFile,Junc_Input,Pattern_Input,
 
     '''
         
-    wnin = wntr.network.WaterNetworkModel(InputFile)
+    wnin = wntr.network.WaterNetworkModel(InputFile) #TODO 3 @Amitosh wn_in and wn_out are clearer
     wnout = wntr.network.WaterNetworkModel(OutputFile)
     
     for node in range(len(Junc_Input)):
@@ -222,7 +232,7 @@ def CopyDemandFromExistingGeometry(InputFile,Junc_Input,Pattern_Input,
     
 # %%
 
-def MWE_CopyDemandFromExistingGeometry():
+def MWE_CopyDemandFromExistingGeometry(): #TODO 2 @Amitosh what is MWE? Use a different name if possible
     NumberOfInputFiles = 1
     InputFile = 'Original\\CopyExample\\Input\\Example'    
     OutputFile = 'Original\\CopyExample\\Output\\Output_'
@@ -464,6 +474,7 @@ def ComputeFractionExceedance(Dem,Qual,threshold):
 
 # %%
 
+#TODO 2 @Amitosh in the explanation you call them quality and demand but as input dem and qual. use the same name (and I prefer demand and quality)
 def PlotDemandAndQuality(Dem,Qual,node,inputfile,threshold=5,
                          duration=86400*7,
                          timestep=10,
