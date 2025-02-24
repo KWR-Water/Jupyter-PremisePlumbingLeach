@@ -36,13 +36,16 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import time
 import pickle
+import glob
+import shutil
+import matplotlib.animation as animation
+from wntr.graphics.network import plot_network
 
 import datetime
 from datetime import datetime
 import pandas as pd
 import os
 from os import listdir
-
 
 # %%
 
@@ -82,10 +85,10 @@ def run_model(files,
               time_properties, quality_properties,
               leaching_properties, factor):
     """
-    This function runs the model with the trifecta of geometry, water demand, and metal leaching.
-    This function uses the inputs to calculate metal concentrations at the demand points.
+    This function runs the model with the trifecta of geometry, water demand, and substance leaching.
+    This function uses the inputs to calculate substance concentrations at the demand points.
     Two files are saved. 
-    One wherein the water demand and metal concentrations at all consumption points are stored. 
+    One wherein the water demand and substance concentrations at all consumption points are stored. 
     Another wherein all the input parameters are saved for reference.
 
     Parameters
@@ -99,7 +102,7 @@ def run_model(files,
     quality_properties : Dictionary
         This variable has multiple fields regarding the parameters surrounding water quality simulations.
     leaching_properties : Dictionary
-        This variable has fields that determines the nature and locations of metal dissolution into water.
+        This variable has fields that determines the nature and locations of substance dissolution into water.
     factor : Integer
         This is a numerical value with which the time and demand properties of simulations are altered. All water demands are reduced by the factor while all timesteps are increased with the same factor. This is necessary to combat the high displacement of water in short pipes (caused by high velocities) which can lead to inaccuracies in water quality computations. Therefore, the timestep for water quality calculations is not adjusted to allow for a greater separation between hydraulic and water quality timescales. The higher the factor, the longer the computational times.
 
@@ -193,7 +196,8 @@ def run_model(files,
     # pd.DataFrame(RunSettings).to_csv(Files['Output Directory']+Files['Output Prefix']+'.csv',index=False)
 
     print('Time elapsed: ' + str(int(time.time() - start_time)) + ' seconds')
-
+    
+    return results
 # %%
 
 
@@ -239,6 +243,7 @@ def copy_demand_from_existing_geometry(input_file, junction_input, pattern_input
         # The patterns are added as the second index of the demand time series and the first one is turned to zero
         junction.demand_timeseries_list[0].base_value = 0
 
+    # wntr.network.io.write_inpfile(wn_out,output_file)
     wn_out.write_inpfile(output_file)
 
 # %%
@@ -256,9 +261,12 @@ def minimal_working_example_copy_demand_from_existing_geometry():
 
     """
 
-    number_of_input_files = 1
+    number_of_input_files = 20
     input_file = 'Examples\\CopyExample\\Input\\Example'
     output_file = 'Examples\\CopyExample\\Output\\Output_'
+    
+    shutil.rmtree('Examples\\CopyExample\\Output\\')
+    shutil.copytree("Examples\\CopyExample\\OutputRaw","Examples\\CopyExample\\Output")
 
     for file in range(number_of_input_files):
         input_loc = input_file + '%02d.inp' % (file+1)
@@ -291,7 +299,7 @@ def load_output(output_file):
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns
     water_quality : Array of floats
-        Contains metal concentration patterns. This array has three dimensions.
+        Contains substance concentration patterns. This array has three dimensions.
         First dimension - all consumption points
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns
@@ -309,7 +317,7 @@ def load_output(output_file):
 
 # %%
 
-
+## @Bram - this function is very slow. Do you know how this can be made more efficient? I think it gets heavy every time new data needs to be dumped into a new tab.
 def npz_to_xlsx(output_file):
     '''
     This function converts the outputs of a previous simulation (saved in npz format) to a CSV format.
@@ -341,6 +349,7 @@ def npz_to_xlsx(output_file):
                                            header=demand_nodes)
             df_dump_demand.to_excel(writer, sheet_name='Demand '+'%02d.inp' % (file+1),
                                     header=demand_nodes)
+            
 
 # %%
 
@@ -371,7 +380,7 @@ def pkl_to_csv(output_file):
 
 def compute_tap_outputs(demand, water_quality, timestep):
     '''
-    This function calculates the total mass water, total mass metal and average concentration metal at each consumption point. 
+    This function calculates the total mass water, total mass substance and average concentration substance at each consumption point. 
 
     Parameters
     ----------
@@ -381,7 +390,7 @@ def compute_tap_outputs(demand, water_quality, timestep):
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns.
     water_quality : Array of floats
-        Contains metal concentration patterns. This array has three dimensions.
+        Contains substance concentration patterns. This array has three dimensions.
         First dimension - all consumption points
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns.
@@ -391,7 +400,7 @@ def compute_tap_outputs(demand, water_quality, timestep):
     Returns
     -------
     tap_outputs : Dictionary
-        Contains three arrays - one for total mass water, one for total mass metal, one for average concentration metal.
+        Contains three arrays - one for total mass water, one for total mass substance, one for average concentration substance.
         Each array is two dimensional. First dimension for all consumption points. Second dimension for all input files with unique water consumption patterns.
     '''
     water_quality_output = np.multiply(np.where(
@@ -399,13 +408,13 @@ def compute_tap_outputs(demand, water_quality, timestep):
     # Total water consumed per week per node [L]
     total_water = np.trapz(demand, dx=timestep, axis=1)*(10**3)
     # Total lead consumed per week per node [ug]
-    total_metal = np.trapz(water_quality_output*demand,
+    total_substance = np.trapz(water_quality_output*demand,
                            dx=timestep, axis=1)*(10**9)
-    total_concentration = total_metal/total_water
+    total_concentration = total_substance/total_water
 
     tap_outputs = dict()
     tap_outputs['TotalWater'] = total_water
-    tap_outputs['TotalMetal'] = total_metal
+    tap_outputs['TotalSubstance'] = total_substance
     tap_outputs['TotalConcentration'] = total_concentration
 
     return tap_outputs
@@ -415,7 +424,7 @@ def compute_tap_outputs(demand, water_quality, timestep):
 
 def compute_CDF(demand, water_quality, node, plot):
     '''
-    This function plots the cumulative distribution of metal concentration at a demand point.
+    This function plots the cumulative distribution of substance concentration at a demand point.
     The plot is based on the compilation of all input files.
 
     Parameters
@@ -426,7 +435,7 @@ def compute_CDF(demand, water_quality, node, plot):
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns.
     water_quality : Array of floats
-        Contains metal concentration patterns. This array has three dimensions.
+        Contains substance concentration patterns. This array has three dimensions.
         First dimension - all consumption points
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns.
@@ -461,7 +470,7 @@ def compute_CDF(demand, water_quality, node, plot):
 
         axs.plot(consumption_sort, consumption_probability, linestyle='none',
                  marker='o', linewidth=1, markerfacecolor="black", markeredgecolor="none")
-        axs.set_xlabel('Metal Concentration [$\mu$g/L]')
+        axs.set_xlabel('Substance Concentration [$\mu$g/L]')
         axs.set_ylabel('Probability [-]')
         axs.grid(True)
         axs.set_xscale('log')
@@ -474,7 +483,7 @@ def compute_CDF(demand, water_quality, node, plot):
 
 def compute_fraction_exceedance(demand, water_quality, threshold):
     '''
-    This function calculates the fraction of timesteps where the metal concentration at the tap exceeds a threshold value.
+    This function calculates the fraction of timesteps where the substance concentration at the tap exceeds a threshold value.
     The fraction is based on the total number of timesteps for which the consumption point is active and there is no correction for the volumetric flow rate.
     The fractions are for all input files combined.
 
@@ -486,7 +495,7 @@ def compute_fraction_exceedance(demand, water_quality, threshold):
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns.
     water_quality : Array of floats
-        Contains metal concentration patterns. This array has three dimensions.
+        Contains substance concentration patterns. This array has three dimensions.
         First dimension - all consumption points
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns.
@@ -513,7 +522,7 @@ def compute_fraction_exceedance(demand, water_quality, threshold):
 
     fraction_exceedance = instances_water_quality_bad / \
         (instances_water_quality_bad+instances_water_quality_good)
-    return instances_water_quality_good,instances_water_quality_bad,fraction_exceedance
+    return fraction_exceedance
 
 # %%
 
@@ -531,7 +540,7 @@ def plot_demand_and_quality(demand, water_quality, node, input_file, threshold=5
                             format_time='Days',
                             font_size=16):
     '''
-    This function plots the water demand and metal concentrations at a consumption point corresponding to a certain input file (one out of the multiple).
+    This function plots the water demand and substance concentrations at a consumption point corresponding to a certain input file (one out of the multiple).
     Limited options are offered to tweak the visualization. However, the user can modify the visualization by modifying hardcoded choices.
 
     Parameters
@@ -542,7 +551,7 @@ def plot_demand_and_quality(demand, water_quality, node, input_file, threshold=5
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns
     water_quality : Array of floats
-        Contains metal concentration patterns. This array has three dimensions.
+        Contains substance concentration patterns. This array has three dimensions.
         First dimension - all consumption points
         Second dimension - all timesteps
         Third dimension - all files with unique water demand patterns
@@ -553,7 +562,7 @@ def plot_demand_and_quality(demand, water_quality, node, input_file, threshold=5
         Typically, multiple input files are present (each with a different water demand pattern).
         This parameter selects which of the numbered input files is to be considered.
     threshold : Integer, optional
-        A threshold metal concentration value used for visualization purposes. 
+        A threshold substance concentration value used for visualization purposes. 
         Values below and above the threshold are visualized with different colored markers. 
         The default is 5 $\mu$g/L.
     duration : Integer, optional
@@ -637,7 +646,7 @@ def plot_demand_and_quality(demand, water_quality, node, input_file, threshold=5
         axs[1].set_xlabel('Time')
         axs[1].set_xticks(xticks)
     axs[1].set_ylim([ylims_water_quality[0], ylims_water_quality[1]])
-    axs[1].set_ylabel('Metal \n concentration [$\mu$g/L]')
+    axs[1].set_ylabel('Substance \n concentration [$\mu$g/L]')
     axs[1].set_yscale('log')
     axs[1].grid(True)
 
@@ -646,3 +655,179 @@ def plot_demand_and_quality(demand, water_quality, node, input_file, threshold=5
     plt.rc('axes', labelsize=font_size)
     plt.rc('xtick', labelsize=font_size)    # fontsize of the tick labels
     plt.rc('ytick', labelsize=font_size)    # fontsize of the tick labels
+
+# %%
+
+def wntr_animation_selectTimes_alternative(wn, node_attribute=None, link_attribute=None, title=None,
+               node_size=20, node_range=[None,None], node_alpha=1, node_cmap=None, node_labels=False,
+               link_width=1, link_range=[None,None], link_alpha=1, link_cmap=None, link_labels=False,
+               add_colorbar=True, directed=False, ax=None, repeat=True, timesteps=0):
+    """
+    Create a network animation
+    Parameters
+    ----------
+    wn : wntr WaterNetworkModel
+        A WaterNetworkModel object
+    node_attribute : pd.DataFrame, optional
+        Node attributes stored in a pandas DataFrames, where the index is 
+        time and columns are the node name 
+    link_attribute : pd.DataFrame, optional
+        Link attributes stored in a pandas DataFrames, where the index is 
+        time and columns are the link name 
+    title : str, optional
+        Plot title 
+    node_size : int, optional
+        Node size 
+    node_range : list, optional
+        Node range ([None,None] indicates autoscale)
+        
+    node_alpha : int, optional
+        Node transparency
+        
+    node_cmap : matplotlib.pyplot.cm colormap or list of named colors, optional
+        Node colormap 
+        
+    node_labels: bool, optional
+        If True, the graph will include each node labelled with its name. 
+        
+    link_width : int, optional
+        Link width
+    link_range : list, optional
+        Link range ([None,None] indicates autoscale)
+    link_alpha : int, optional
+        Link transparency
+    
+    link_cmap : matplotlib.pyplot.cm colormap or list of named colors, optional
+        Link colormap
+        
+    link_labels: bool, optional
+        If True, the graph will include each link labelled with its name. 
+        
+    add_colorbar : bool, optional
+        Add colorbar
+    directed : bool, optional
+        If True, plot the directed graph
+    
+    repeat : bool, optional
+        If True, the animation will repeat
+        
+    Returns
+    -------
+    matplotlib animation
+    """
+    
+    if node_attribute is not None:
+        node_index = node_attribute.index
+        initial_node_values = node_attribute.iloc[0, :]
+        if node_range[0] is None:
+            node_range[0] = node_attribute.min().min()
+        if node_range[1] is None:
+            node_range[1] = node_attribute.max().max()
+    else:
+        node_index = None
+        initial_node_values = None
+        
+    if link_attribute is not None:
+        link_index = link_attribute.index
+        initial_link_values = link_attribute.iloc[0, :]
+        if link_range[0] is None:
+            link_range[0] = link_attribute.min().min()
+        if link_range[1] is None:
+            link_range[1] = link_attribute.max().max()
+    else:
+        link_index = None
+        initial_link_values = None
+    
+    if (node_index is not None) & (link_index is not None):
+        if len(node_index.symmetric_difference(link_index)) > 0:
+            print('Node attribute index does not equal link attribute index')
+            return
+        index = node_index
+    elif node_index is not None:
+        index = node_index
+    elif link_index is not None:
+        index = link_index
+    else:
+        print('Node attributes or link attributes must be included')
+        return
+    
+    if ax is None: # create a new figure
+        fig = plt.figure(facecolor='w', edgecolor='k')
+        ax = plt.gca()
+            
+    if title is not None:
+        title_name = title + ', ', str(index[0])
+    else:
+        title_name = '0'
+    
+    [ax, clbn, clbl] = plot_network(wn, node_attribute=initial_node_values, link_attribute=initial_link_values, title=title_name,
+               node_size=node_size, node_range=node_range, node_alpha=node_alpha, node_cmap=node_cmap, node_labels=node_labels,
+               link_width=link_width, link_range=link_range, link_alpha=link_alpha, link_cmap=link_cmap, link_labels=link_labels,
+               add_colorbar=add_colorbar, directed=directed, ax=ax)
+    clbn.ax.set_title(label='Demand [l/s]')
+    clbl.ax.set_title(label='Lead [$\mu$g/L]')
+    
+    figManager = plt.get_current_fig_manager()
+    figManager.window.showMaximized()
+        
+    def update(n):
+        if node_attribute is not None:
+            node_values = node_attribute.iloc[n, :]
+        else:
+            node_values = None
+        
+        if link_attribute is not None:
+            link_values = link_attribute.iloc[n, :]
+        else:
+            link_values = None
+            
+        if title is not None:
+            title_name = title + ', ' + str(index[n])
+        else:
+            title_name = str(n)
+            [d,h,m,s] = sec_to_days_hours_min_sec(n*10)   
+            title_name = "%02d:%02d:%02d" % (h, m, s)
+        
+        fig.clf()  
+        ax = plt.gca()
+        
+        [ax, clbn, clbl] = plot_network(wn, node_attribute=node_values, link_attribute=link_values, title=title_name,
+               node_size=node_size, node_range=node_range, node_alpha=node_alpha, node_cmap=node_cmap, node_labels=node_labels,
+               link_width=link_width, link_range=link_range, link_alpha=link_alpha, link_cmap=link_cmap, link_labels=link_labels,
+               add_colorbar=add_colorbar, directed=directed, ax=ax)
+        # clbn.ax.set_title(label='Demand [l/s]')
+        clbn.remove()
+        # clbl.ax.set_title(label='Lead [$\mu$g/L]')
+        clbl.remove()
+        
+        return ax
+    
+    # for i in timesteps:
+    figManager = plt.get_current_fig_manager()
+    
+    figManager.window.showMaximized()        
+    anim = animation.FuncAnimation(fig, update, interval=250, frames=timesteps, blit=False, repeat=repeat)
+    
+    writer = animation.FFMpegWriter(
+        fps=3, metadata=dict(artist='Me'), bitrate=1800)
+    anim.save('demo.mp4',writer=writer)
+    figManager = plt.get_current_fig_manager()
+    figManager.window.showMaximized()
+    
+    return anim
+
+# %% Convert seconds to days_hours_min_sec - taken and adapted from wntr.network.controls
+
+def sec_to_days_hours_min_sec(value):
+        sec = float(value)
+        days = int(sec/86400.)
+        sec -= days*86400
+        hours = int(sec/3600.)
+        sec -= hours*3600
+        mm = int(sec/60.)
+        sec -= mm*60
+        return days, hours, mm, int(sec)
+    
+def days_hours_min_sec_to_sec(days, hours, mm, sec):
+        sectotal = days*86400 + hours*3600 + mm*60 + sec
+        return sectotal  
