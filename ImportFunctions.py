@@ -243,8 +243,8 @@ def copy_demand_from_existing_geometry(input_file, junction_input, pattern_input
         # The patterns are added as the second index of the demand time series and the first one is turned to zero
         junction.demand_timeseries_list[0].base_value = 0
 
-    # wntr.network.io.write_inpfile(wn_out,output_file)
-    wn_out.write_inpfile(output_file)
+    wntr.network.io.write_inpfile(wn_out,output_file)
+    # wn_out.write_inpfile(output_file)
 
 # %%
 
