@@ -28,8 +28,6 @@ import sys
 #!python3
 #!python3 -m pip install -r Requirements.txt
 
-# TODO @Amitosh Vs code shows many imports here that are actually not used, does spyder do so too?
-# @Bram: Done
 import numpy as np
 import wntr
 import matplotlib.pyplot as plt
@@ -70,15 +68,10 @@ def extract_demand_nodes(input_file):
     demand_nodes = []
     for junction_name, junction in wn.junctions():
         if junction.demand_timeseries_list[-1].base_value > 0:
-            # TODO 3 @Amitosh, I think junctionname is a string always already.
             demand_nodes = np.append(demand_nodes, (junction_name))
-    # @Bram: Done
     return demand_nodes
 
 # %%
-
-# TODO 2 @Amitosh below you explain inputfile, outputfile, numberofinputfiles but your input is only Files. So explain that instead of these
-
 
 def run_model(files,
               consumption_properties,
@@ -125,14 +118,10 @@ def run_model(files,
         if file == 0:
             demand_nodes = extract_demand_nodes(input_file)
             consumption_properties['ConsumptionPoints'] = demand_nodes
-            # Water quality #TODO 3 @Amitosh call it quality or even water_quality nota qual
             water_quality = np.zeros(
                 [len(demand_nodes), timesteps, files['Number of files']])
-            # @Bram: Done
-            # Demand #TODO 3 @Amitosh call is demand not dem
             demand = np.zeros(
                 [len(demand_nodes), timesteps, files['Number of files']])
-            # @Bram: Done
 
         wn = wntr.network.WaterNetworkModel(input_file)
 
@@ -143,8 +132,7 @@ def run_model(files,
         wn.options.time.report_timestep = time_properties['Report Timestep']*factor
         wn.options.time.pattern_timestep = time_properties['Pattern Timestep']*factor
 
-        for junction_name, junction in wn.junctions():  # TODO 3 @Amitosh call it junction not junc
-            # @Bram: Done
+        for junction_name, junction in wn.junctions():  
             junction.demand_timeseries_list[-1].base_value /= factor
 
         wn.options.quality.parameter = quality_properties['Parameter']
@@ -168,8 +156,7 @@ def run_model(files,
                 results.node['quality'][demand_nodes[node]]), (1, timesteps, 1))  # kg/m3
             demand[node:node+1, :, file:file+1] = np.reshape(np.array(
                 results.node['demand'][demand_nodes[node]]), (1, timesteps, 1))  # m3/s
-    # TODO 3 @Amitosh, here I would also prefer full names. It is good practice to only use abbreviations for things we all agree on (like loc or temp) and use full names for anything else. It will make sure that someone better understands what is happening
-    # @Bram: Done
+
     water_quality_full = water_quality
     demand_full = demand*factor  # Correct for rescaling
     water_quality_save = water_quality_full[:, int((time_properties['Duration']-consumption_properties['Pattern Duration']) /
@@ -227,9 +214,7 @@ def copy_demand_from_existing_geometry(input_file, junction_input, pattern_input
 
     """
 
-    # TODO 3 @Amitosh wn_in and wn_out are clearer
     wn_in = wntr.network.WaterNetworkModel(input_file)
-    # @Bram: Done
     wn_out = wntr.network.WaterNetworkModel(output_file)
 
     for node in range(len(junction_input)):
@@ -249,8 +234,6 @@ def copy_demand_from_existing_geometry(input_file, junction_input, pattern_input
 # %%
 
 
-# TODO 2 @Amitosh what is MWE? Use a different name if possible.
-# @Bram: Done
 def minimal_working_example_copy_demand_from_existing_geometry():
     """
     This function executes a simple example wherein demand patterns from one series of input files is copied to another using the function "copy_demand_from_existing_geometry".
@@ -318,6 +301,8 @@ def load_output(output_file):
 # %%
 
 ## @Bram - this function is very slow. Do you know how this can be made more efficient? I think it gets heavy every time new data needs to be dumped into a new tab.
+## @Amitosh - One way to improve the performance is to minimize the number of times we write to the Excel file. Instead of writing each DataFrame to a new sheet one by one, we can collect all the DataFrames in a dictionary and write them all at once at the end. This should reduce the overhead of multiple I/O operations.
+## @ Amitosh, the above was a suggestion from copilot :D I am not sure it works but in general for these sort of things I would nowadays use copilot, on other occasions it worked really well for me.
 def npz_to_xlsx(output_file):
     '''
     This function converts the outputs of a previous simulation (saved in npz format) to a CSV format.
@@ -599,7 +584,7 @@ def plot_demand_and_quality(demand, water_quality, node, input_file, threshold=5
     None.
 
     '''
-
+    #TODO @Amitosh, explain this /100000 and *1000000
     threshold = threshold/1000000
     # Quality of water collected [kg/m3]
     water_quality_output = np.multiply(
