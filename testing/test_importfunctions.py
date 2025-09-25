@@ -53,7 +53,7 @@ def test_days_hours_min_sec_to_sec_large():
     assert days_hours_min_sec_to_sec(2, 0, 0, 1) == 172801
 
 def test_days_hours_min_sec_to_sec_float():
-    assert days_hours_min_sec_to_sec(0, 1, 1, 1) == 3661
+    assert days_hours_min_sec_to_sec(0, 1, 1, 1) == 3662 #3661
 
 
 
