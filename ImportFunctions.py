@@ -4,29 +4,10 @@ Created on Mon Sep 16 15:08:52 2024
 
 @author: dasham
 """
-# TODO @Amitosh: First code review like this. I am going to add a little here about how I do it. I will put TODO @Amitosh everywhere.
-# TODO @Amitosh Also I will put numbers 1 - 4. where 1 means, breaking, dont do this to 4 which means convention is slightly different, but fine to leave like this
-# @Bram: For comments you feel are sufficiently resolved, please feel free to mark as done or delete comments.
 
-# TODO 4 @Amitosh you use what they call CamelCase for your variable names. It looks consistent which is good. However according to python standards this is the convention for
-# classes and not variables or functions (https://peps.python.org/pep-0008/#class-names) I dont care one bit, so leave it for now. But know that it might come back one day.
-# @Bram: Fixed in script but not yet on Jupyter Notebook
-
-# TODO 3 @Amitosh I think you should remove all these run cells since it is now a jupyter nodebook
-# @Bram: Yes, but I have let these stay because I might sometimes run the function on Spyder for QC.
 # %%
 
-# TODO 2 @Amitosh remove all these commented out code.
-# TODO 1 @Amitosh this hard coded sys path should ofcourse go since no one has that.
-# @Bram: Let us solve this by planning how we want to test this out.
-
 import sys
-# sys.path
-# sys.path.append('C:\\Users\\dasham\\Anaconda3\\envs\\Aquarellus\\Lib\\site-packages')
-# sys.path
-
-#!python3
-#!python3 -m pip install -r Requirements.txt
 
 import numpy as np
 import wntr
@@ -300,9 +281,6 @@ def load_output(output_file):
 
 # %%
 
-## @Bram - this function is very slow. Do you know how this can be made more efficient? I think it gets heavy every time new data needs to be dumped into a new tab.
-## @Amitosh - One way to improve the performance is to minimize the number of times we write to the Excel file. Instead of writing each DataFrame to a new sheet one by one, we can collect all the DataFrames in a dictionary and write them all at once at the end. This should reduce the overhead of multiple I/O operations.
-## @ Amitosh, the above was a suggestion from copilot :D I am not sure it works but in general for these sort of things I would nowadays use copilot, on other occasions it worked really well for me.
 def npz_to_xlsx(output_file):
     '''
     This function converts the outputs of a previous simulation (saved in npz format) to a CSV format.
@@ -511,8 +489,6 @@ def compute_fraction_exceedance(demand, water_quality, threshold):
 
 # %%
 
-# TODO 2 @Amitosh in the explanation you call them quality and demand but as input dem and qual. use the same name (and I prefer demand and quality)
-
 
 def plot_demand_and_quality(demand, water_quality, node, input_file, threshold=5,
                             duration=86400*7,
@@ -584,7 +560,7 @@ def plot_demand_and_quality(demand, water_quality, node, input_file, threshold=5
     None.
 
     '''
-    #TODO @Amitosh, explain this /100000 and *1000000
+    
     threshold = threshold/1000000
     # Quality of water collected [kg/m3]
     water_quality_output = np.multiply(
